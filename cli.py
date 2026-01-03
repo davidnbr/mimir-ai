@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-Jarvis CLI - Simple command-line interface for Phase 1 testing.
-Run with: python cli.py
+Jarvis CLI - Command-line interface.
+Supports both simple mode and multi-agent mode.
 """
 import sys
-from uuid import uuid4
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -18,11 +17,11 @@ console = Console()
 
 
 def print_welcome():
+    """Print welcome message."""
     mode = Config.print_status()
     model = Config.GEMINI_MODEL if Config.USE_GEMINI_ONLY else Config.CLAUDE_MODEL
 
-    """Print welcome message."""
-    welcome = """
+    welcome = f"""
 # JARVIS v0.1.0
 
 Good evening, Sir. JARVIS online and ready to assist.
@@ -30,14 +29,8 @@ Good evening, Sir. JARVIS online and ready to assist.
 **Mode:** {mode}
 **Model:** {model}
 
-**Available Agents:**
-- `prompt_refiner` - Clarifies your requests
-- `backend_agent` - Python, Go, APIs, databases
-- `frontend_agent` - React, TypeScript, CSS
-- `devops_agent` - Terraform, Docker, Kubernetes, CI/CD
-- `pr_reviewer` - Code quality review
-
 Type your request or 'quit' to exit.
+Commands: /clear (reset history), /mode (show current mode)
 """
     console.print(
         Panel(
@@ -48,39 +41,14 @@ Type your request or 'quit' to exit.
     )
 
 
-def format_agent_name(name: str) -> str:
-    """Format agent name for display."""
-    colors = {
-        "prompt_refiner": "yellow",
-        "backend_agent": "green",
-        "frontend_agent": "cyan",
-        "devops_agent": "magenta",
-        "pr_reviewer": "red",
-        "supervisor": "blue",
-    }
-    color = colors.get(name, "white")
-    return f"[bold {color}]{name}[/bold {color}]"
+def run_simple_mode():
+    """Run simple single-agent mode."""
+    from simple_workflow import SimpleJarvis
 
-
-def run_cli():
-    """Run the interactive CLI."""
-    print_welcome()
-
-    # Create workflow once
-    console.print("[dim]Initializing JARVIS systems...[/dim]")
-    try:
-        workflow = create_jarvis_workflow()
-        console.print("[green]✓ All systems operational[/green]\n")
-    except Exception as e:
-        console.print(f"[red]✗ Initialization failed: {e}[/red]")
-        sys.exit(1)
-
-    # Unique thread ID for this session
-    thread_id = str(uuid4())
+    jarvis = SimpleJarvis()
 
     while True:
         try:
-            # Get user input
             console.print("[bold blue]You:[/bold blue] ", end="")
             user_input = input().strip()
 
@@ -91,31 +59,81 @@ def run_cli():
                 console.print("\n[dim]JARVIS powering down. Good evening, Sir.[/dim]")
                 break
 
+            if user_input.lower() == "/clear":
+                jarvis.clear_history()
+                console.print("[dim]Conversation history cleared, Sir.[/dim]\n")
+                continue
+
+            if user_input.lower() == "/mode":
+                console.print(f"[dim]Current mode: {Config.print_status()}[/dim]\n")
+                continue
+
             # Stream response
+            console.print("\n[bold green]JARVIS:[/bold green]")
+
+            try:
+                for chunk in jarvis.stream(user_input):
+                    console.print(chunk, end="")
+                console.print("\n")
+            except Exception as e:
+                console.print(f"\n[red]Error: {e}[/red]")
+                console.print("[dim]Attempting to continue...[/dim]\n")
+
+        except KeyboardInterrupt:
+            console.print("\n\n[dim]JARVIS powering down. Good evening, Sir.[/dim]")
+            break
+
+
+def run_multi_agent_mode():
+    """Run full multi-agent supervisor mode."""
+    from uuid import uuid4
+    from workflow import create_jarvis_workflow, stream_jarvis
+
+    console.print("[dim]Initializing multi-agent systems...[/dim]")
+    try:
+        workflow = create_jarvis_workflow()
+        console.print("[green]✓ All systems operational[/green]\n")
+    except Exception as e:
+        console.print(f"[red]✗ Initialization failed: {e}[/red]")
+        sys.exit(1)
+
+    thread_id = str(uuid4())
+
+    while True:
+        try:
+            console.print("[bold blue]You:[/bold blue] ", end="")
+            user_input = input().strip()
+
+            if not user_input:
+                continue
+
+            if user_input.lower() in ("quit", "exit", "q"):
+                console.print("\n[dim]JARVIS powering down. Good evening, Sir.[/dim]")
+                break
+
+            if user_input.lower() == "/mode":
+                console.print(f"[dim]Current mode: {Config.print_status()}[/dim]\n")
+                continue
+
             console.print()
             current_agent = None
 
-            with Live(
-                Spinner("dots", text="Processing..."),
-                refresh_per_second=10,
-                transient=True,
-            ):
+            try:
                 for event in stream_jarvis(
                     user_input, thread_id=thread_id, workflow=workflow
                 ):
-                    # event is a dict with agent name as key
                     for agent_name, data in event.items():
                         if agent_name != current_agent:
                             if current_agent is not None:
-                                console.print()  # Newline between agents
+                                console.print()
                             current_agent = agent_name
-                            console.print(f"\n{format_agent_name(agent_name)}:")
+                            console.print(
+                                f"\n[bold magenta]{agent_name}:[/bold magenta]"
+                            )
 
-                        # Extract message content
                         if "messages" in data:
                             for msg in data["messages"]:
                                 if hasattr(msg, "content") and msg.content:
-                                    # Handle different content types
                                     content = msg.content
                                     if isinstance(content, list):
                                         content = "\n".join(
@@ -127,15 +145,25 @@ def run_cli():
                                             for c in content
                                         )
                                     console.print(Markdown(content))
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/red]")
+                console.print("[dim]Attempting to continue...[/dim]")
 
             console.print()
 
         except KeyboardInterrupt:
             console.print("\n\n[dim]JARVIS powering down. Good evening, Sir.[/dim]")
             break
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
-            console.print("[dim]Attempting to continue...[/dim]\n")
+
+
+def run_cli():
+    """Main entry point - picks mode based on config."""
+    print_welcome()
+
+    if Config.SIMPLE_MODE:
+        run_simple_mode()
+    else:
+        run_multi_agent_mode()
 
 
 if __name__ == "__main__":
