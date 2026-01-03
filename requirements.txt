@@ -1,11 +1,14 @@
-# Core LangGraph + Multi-Agent
-langgraph>=0.2.0
-langgraph-supervisor>=0.0.10
+# Core - only what we need for simple mode
+google-genai>=1.0.0
 
-# LLM Providers
-langchain-anthropic>=0.3.0
-langchain-google-genai>=2.0.0
-langchain-core>=0.3.0
+# Core LangGraph + Multi-Agent
+# langgraph>=0.2.0
+# langgraph-supervisor>=0.0.10
+# 
+# # LLM Providers
+# langchain-anthropic>=0.3.0
+# langchain-google-genai>=2.0.0
+# langchain-core>=0.3.0
 
 # Environment
 python-dotenv>=1.0.0

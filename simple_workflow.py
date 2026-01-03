@@ -1,84 +1,89 @@
 """
 Jarvis Simple Workflow
-Single-agent mode for lower API usage.
+Single-agent mode using google-genai SDK directly.
 """
 
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from google import genai
+from google.genai import types
 
 from config import Config
 from prompts import JARVIS_SIMPLE_PROMPT
 
 
-def get_model():
-    """Get the configured model."""
-    if Config.USE_CLAUDE_ONLY:
-        return ChatAnthropic(
-            model=Config.CLAUDE_MODEL,
-            api_key=Config.ANTHROPIC_API_KEY,
-            max_tokens=4096,
-        )
-    # Default to Gemini (including USE_GEMINI_ONLY)
-    return ChatGoogleGenerativeAI(
-        model=Config.GEMINI_MODEL,
-        google_api_key=Config.GOOGLE_API_KEY,
-        max_output_tokens=4096,
-        max_retries=3,
-    )
-
-
 class SimpleJarvis:
     """
-    Simple single-agent Jarvis.
-    No supervisor, no routing - just direct LLM calls.
+    Simple single-agent Jarvis using Gemini directly.
+    No LangChain overhead, no deprecated packages.
     """
 
     def __init__(self):
-        self.model = get_model()
-        self.system_message = SystemMessage(content=JARVIS_SIMPLE_PROMPT)
-        self.history: list = []
+        self.client = genai.Client(api_key=Config.GOOGLE_API_KEY)
+        self.model = Config.GEMINI_MODEL
+        self.history: list[types.Content] = []
+        self.system_instruction = JARVIS_SIMPLE_PROMPT
 
     def chat(self, message: str) -> str:
         """
         Send a message and get a response.
         Maintains conversation history within session.
         """
-        # Build messages
-        messages = (
-            [self.system_message] + self.history + [HumanMessage(content=message)]
+        # Add user message to history
+        self.history.append(
+            types.Content(role="user", parts=[types.Part(text=message)])
         )
 
         # Call model
-        response = self.model.invoke(messages)
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=self.history,
+            config=types.GenerateContentConfig(
+                system_instruction=self.system_instruction,
+                max_output_tokens=4096,
+            ),
+        )
 
-        # Update history
-        self.history.append(HumanMessage(content=message))
-        self.history.append(AIMessage(content=response.content))
+        # Extract response text
+        response_text = response.text
 
-        # Keep history manageable (last 10 exchanges)
+        # Add assistant response to history
+        self.history.append(
+            types.Content(role="model", parts=[types.Part(text=response_text)])
+        )
+
+        # Keep history manageable (last 10 exchanges = 20 messages)
         if len(self.history) > 20:
             self.history = self.history[-20:]
 
-        return response.content
+        return response_text
 
     def stream(self, message: str):
         """
         Stream a response token by token.
         """
-        messages = (
-            [self.system_message] + self.history + [HumanMessage(content=message)]
+        # Add user message to history
+        self.history.append(
+            types.Content(role="user", parts=[types.Part(text=message)])
         )
 
+        # Stream response
         full_response = ""
-        for chunk in self.model.stream(messages):
-            if hasattr(chunk, "content") and chunk.content:
-                full_response += chunk.content
-                yield chunk.content
 
-        # Update history after streaming completes
-        self.history.append(HumanMessage(content=message))
-        self.history.append(AIMessage(content=full_response))
+        for chunk in self.client.models.generate_content_stream(
+            model=self.model,
+            contents=self.history,
+            config=types.GenerateContentConfig(
+                system_instruction=self.system_instruction,
+                max_output_tokens=4096,
+            ),
+        ):
+            if chunk.text:
+                full_response += chunk.text
+                yield chunk.text
+
+        # Add complete response to history
+        self.history.append(
+            types.Content(role="model", parts=[types.Part(text=full_response)])
+        )
 
         if len(self.history) > 20:
             self.history = self.history[-20:]
