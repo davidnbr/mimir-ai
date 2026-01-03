@@ -1,17 +1,13 @@
-# Core - only what we need for simple mode
+# Core
 google-genai>=1.0.0
+python-dotenv>=1.0.0
+rich>=13.0.0
 
-# Core LangGraph + Multi-Agent
+# Memory System (Phase 2)
+chromadb>=0.5.0
+
+# For multi-agent mode (Phase 3+)
 # langgraph>=0.2.0
 # langgraph-supervisor>=0.0.10
-# 
-# # LLM Providers
 # langchain-anthropic>=0.3.0
-# langchain-google-genai>=2.0.0
 # langchain-core>=0.3.0
-
-# Environment
-python-dotenv>=1.0.0
-
-# CLI (Phase 1 basic, Phase 5 will add rich TUI)
-rich>=13.0.0
