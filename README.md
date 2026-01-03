@@ -1,19 +1,8 @@
-```
-  __  __ _____ _    _ _____ _____
- |  \/  |_   _| |  | |  __ \_   _|
- | \  / | | | | |__| | |__) || |
- | |\/| | | | |  __  |  ___/ | |
- | |  | |_| |_| |  | | |    _| |_
- |_|  |_|_____|_|  |_|_|   |_____|
-```
-
-## Theme: Echoes of Wisdom
-
-Drawing inspiration from Norse mythology, Mimir embodies wisdom, knowledge, and foresight. The project's theme revolves around a dark, mysterious aesthetic with glowing accents, reflecting its deep understanding and intelligent guidance.
-
 # Mimir AI
 
-Mimir AI is a comprehensive assistant designed with both a Command Line Interface (CLI) and a User Interface (UI). It features voice activation and is built to be highly memory and context aware, providing intelligent and natural interactions. This README provides an overview of the project, setup instructions, and guidance on how to use it.
+![Mimir AI Banner](img/banner.jpg)
+
+A comprehensive assistant designed for intuitive and intelligent interactions. Mimir AI offers a robust Command Line Interface (CLI) and a user-friendly Graphical User Interface (UI). It features seamless voice activation and is built with advanced memory and context awareness to provide natural and highly responsive assistance.
 
 ## Table of Contents
 
