@@ -12,3 +12,6 @@ devenv.local.yaml
 # Python
 __pycache__
 .env
+
+# Project
+data
